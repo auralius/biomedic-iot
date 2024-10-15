@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Brokers - IoT-MQTT hands-on activity</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Brokers";
+        var mkdocs_page_input_path = "brokers.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> IoT-MQTT hands-on activity
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">First-time setup</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Brokers</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#playing-with-testmosquittoorg">Playing with test.mosquitto.org</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#local-broker">Local broker</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#setup-the-local-broker">Setup the local broker</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#linux-system">Linux system:</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#windows-system">Windows system:</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#clients">Clients</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#assignment">Assignment</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#hivemq">HiveMQ</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#create-and-run-the-broker">Create and run the broker</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#emqx-assignment">EMQX (assignment)</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#blynk">Blynk</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../clients/">Arduino MQTT client</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../info/">Information and scopes</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">IoT-MQTT hands-on activity</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Brokers</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="brokers">Brokers</h1>
+<p>There are several brokers that we are going to try:<br />
+- test.mosquito.org<br />
+- local broker<br />
+- serverles brokers (HiveMQ, EMQX, etc)<br />
+- managed brokers (Blynk, Antares, etc)   </p>
+<hr />
+<h2 id="playing-with-testmosquittoorg">Playing with test.mosquitto.org</h2>
+<p>Eclipse Mosquitto provides a simple broker in the <a href="https://test.mosquitto.org/">cloud</a> that we can use for testings. In fact, test.mosquitto.org can be considered as another serverless broker. We will use port number 1883 for <u>unencrypted-unauthenticated</u> connections.</p>
+<hr />
+<h2 id="local-broker">Local broker</h2>
+<p>It is possible to install a broker in our own computer. In this case, our IoT devices connect to our computer directly. Internet connection becomes unnecessary.</p>
+<h3 id="setup-the-local-broker">Setup the local broker</h3>
+<p>These are some good documentations on how to install the broker on Linux and Windows systems. <u>We must make sure that we allow anonymous connectios to the broker</u>.</p>
+<h4 id="linux-system">Linux system:</h4>
+<p><a href="https://docs.vultr.com/install-mosquitto-mqtt-broker-on-ubuntu-20-04-server">https://docs.vultr.com/install-mosquitto-mqtt-broker-on-ubuntu-20-04-server</a>  </p>
+<h4 id="windows-system">Windows system:</h4>
+<p><a href="https://cedalo.com/blog/how-to-install-mosquitto-mqtt-broker-on-windows/">https://cedalo.com/blog/how-to-install-mosquitto-mqtt-broker-on-windows/</a> -- follow step 1, 2, 5, 7, 8, 9, and 10. For step 5, follow only up to the point where we allow anonymous connections.</p>
+<h3 id="clients">Clients</h3>
+<p>One way to create a client is by simulating the client from the same computer. Here, we can use the <code>mosquitto_pub</code> and <code>mosquitto_sub</code> commands by using the following formats.  </p>
+<ul>
+<li><code>mosquitto_pub -m PAYLOAD -t TOPIC</code>  </li>
+<li><code>mosquitto_sub -t TOPIC</code></li>
+</ul>
+<p>To connect from our IoT devices, we can adapt the provided Arduino MQTT client template to connect to our local broker. <u>Please note that our local broker accepts anonymous connections</u>.</p>
+<h3 id="assignment">Assignment</h3>
+<p>Adapt the provided Arduino MQTT client template to connect to your local broker.</p>
+<hr />
+<h2 id="hivemq">HiveMQ</h2>
+<h3 id="create-and-run-the-broker">Create and run the broker</h3>
+<p>First, create a HiveMQ account for free and sign in to that account. After that, click  <code>Create New Cluster &gt;&gt; Manage Cluster</code>.  </p>
+<p><img alt="|650" src="../attachments/Pasted%20image%2020241003075831.png" /></p>
+<p>In HiveMQ, clients must have accounts and passwords. Therefore, we need to create at least one  username and password which can be done from the <code>Access Management</code> menu.
+<img alt="|600" src="../attachments/Pasted%20image%2020241003080311.png" /></p>
+<hr />
+<h2 id="emqx-assignment">EMQX (assignment)</h2>
+<p>EMQX also provide a free serverless broker similar to HiveMQ. <br />
+Now, let us setup a connection to EMQX broker from an Arduino MQTT client. <font color="#ff0000">This will become our class assignment</font>.  </p>
+<hr />
+<h2 id="blynk">Blynk</h2>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href=".." class="btn btn-neutral float-left" title="First-time setup"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../clients/" class="btn btn-neutral float-right" title="Arduino MQTT client">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href=".." style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../clients/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../javascripts/mathjax.js"></script>
+      <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

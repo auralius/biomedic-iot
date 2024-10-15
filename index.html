@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="description" content="None" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>IoT-MQTT hands-on activity</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "First-time setup";
+        var mkdocs_page_input_path = "index.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="." class="icon icon-home"> IoT-MQTT hands-on activity
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href=".">First-time setup</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#the-supported-devices">The supported devices</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#arduino-ide">Arduino IDE</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#additional-board-manager">Additional board manager</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#esp-32">ESP 32</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#esp-8266">ESP 8266</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#connecting-to-the-university-wifi">Connecting to the University WiFi</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#esp-8266_1">ESP 8266</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#esp-32_1">ESP 32</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#local-wifi">Local wifi</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#assignment">Assignment</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="brokers/">Brokers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="clients/">Arduino MQTT client</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="info/">Information and scopes</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href=".">IoT-MQTT hands-on activity</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">First-time setup</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="first-time-setup">First-time setup</h1>
+<p>Before we start playing with the MQTT protocol for our IoT class, there are some initial preparations that we must do.</p>
+<h2 id="the-supported-devices">The supported devices</h2>
+<p>In the class, we can either use<u> ESP 32 or  Lolin Wemos D1 Mini</u>. The later -- especially the cloned version -- is very cheap! However, we can always use other IoT enabled devices, such as Arduino UNO R4 WiFi, Raspberry Pi, and many more. </p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img alt="ESP 32|240" src="attachments/Pasted%20image%2020241002173452.png" /></td>
+<td><img alt="Lolin Wemos D1 Mini Clone|150" src="attachments/Pasted%20image%2020241002173115.png" /></td>
+</tr>
+</tbody>
+</table>
+<h2 id="arduino-ide">Arduino IDE</h2>
+<p>Download and install the Arduino IDE from the <a href="https://www.arduino.cc/en/software">official website</a> .</p>
+<h3 id="additional-board-manager">Additional board manager</h3>
+<p>ESP 8266 and ESP 32 are not in the default Arduino board list.</p>
+<p>For ESP 8266, add <code>http://arduino.esp8266.com/stable/package_esp8266com_index.json</code> to the <code>Additional Boards Manager URLs</code>, which can be found in this menu: <code>File &gt;&gt; "Preferences &gt;&gt; Settings</code></p>
+<p>As for ESP 32, add <code>https://espressif.github.io/arduino-esp32/package_esp32_index.json</code> to the <code>Additional Boards Manager URLs</code></p>
+<p><img alt="|650" src="attachments/Pasted%20image%2020241001145040.png" /></p>
+<h3 id="esp-32">ESP 32</h3>
+<p>Follow this official documentation form Espressif:<br />
+<a href="https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html">https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html</a></p>
+<h3 id="esp-8266">ESP 8266</h3>
+<p>Follow this official documentation form Espressif:<br />
+<a href="https://arduino-esp8266.readthedocs.io/en/latest/installing.html">https://arduino-esp8266.readthedocs.io/en/latest/installing.html</a></p>
+<p>The cheapest 8266 board is the clone version which uses CH340/341 chip for communication purposes.</p>
+<p>In this case, if you are using Windows, follow this instruction to install the necessary driver:<br />
+- Video guide: <a href="https://www.youtube.com/watch?v=IxH_1LApjPc">https://www.youtube.com/watch?v=IxH_1LApjPc</a><br />
+- Driver:  <a href="attachments/CH341SER_WIN_3.4.zip">v3.4</a> or <a href="attachments/CH341SER_WIN_3.5.zip">v3.5</a></p>
+<p>There are some reports that the latest driver is problematic. Thus, we will use v3.4 or v3.5. </p>
+<p>Finally, in the Arduino IDE, we can now set the device to: "LOLIN (WEMOS) D1 mini (clone)". Do this from the menu <code>Tools &gt;&gt; Board &gt;&gt; ESP 8266 Boards (3.1.2) &gt;&gt; LOLIN (WEMOS) D1 mini (clone)</code>  </p>
+<h2 id="connecting-to-the-university-wifi">Connecting to the University WiFi</h2>
+<p>Our university uses enterprise WiFi in its campus.  Depending on your device, use the following codes to connect to the university WiFi:</p>
+<h3 id="esp-8266_1">ESP 8266</h3>
+<pre><code class="language-cpp">#include  &lt;ESP8266WiFi.h&gt;
+
+extern &quot;C&quot; {
+#include &quot;user_interface.h&quot;
+#include &quot;wpa2_enterprise.h&quot;
+#include &quot;c_types.h&quot;
+}
+
+// SSID to connect to
+char ssid[] = &quot;TelU-Connect&quot;;
+char username[] = &quot;your_username&quot;;
+char identity[] = &quot;your_username&quot;;
+char password[] = &quot;your_password&quot;;
+
+
+void setup() {
+
+  WiFi.mode(WIFI_STA);
+  Serial.begin(115200);
+  delay(10);
+
+  Serial.println();
+  Serial.print(&quot;Connecting to &quot;);
+  Serial.println(ssid);
+
+  // Setting ESP into STATION mode only (no AP mode or dual mode)
+  wifi_set_opmode(STATION_MODE);  
+
+  wifi_station_set_wpa2_enterprise_auth(1);
+
+  wifi_station_set_enterprise_identity((uint8*)identity, strlen(identity));
+  wifi_station_set_enterprise_username((uint8*)username, strlen(username));
+  wifi_station_set_enterprise_password((uint8*)password, strlen((char*)password));
+
+  wifi_station_connect();
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(&quot;-&quot;);
+  }
+
+  Serial.println();
+  Serial.println(&quot;WiFi connected&quot;);
+  Serial.println(&quot;IP address: &quot;);
+  Serial.println(WiFi.localIP());
+}
+
+void loop() {
+}
+</code></pre>
+<h3 id="esp-32_1">ESP 32</h3>
+<pre><code class="language-cpp">#include &quot;esp_eap_client.h&quot;
+#include &lt;WiFi.h&gt;
+
+const char* ssid = &quot;TelU-Connect&quot;; // your ssid
+#define EAP_ID &quot;USERNAME&quot;
+#define EAP_USERNAME &quot;USERNAME&quot;
+#define EAP_PASSWORD &quot;PASSWORD&quot;
+
+void setup() {
+    Serial.begin(115200);
+    delay(10);
+
+    Serial.println();
+    Serial.print(&quot;Connecting to &quot;);
+    Serial.println(ssid);
+
+    // WPA2 enterprise magic starts here
+    WiFi.disconnect(true);      
+    esp_eap_client_set_identity((uint8_t *)EAP_ID, strlen(EAP_ID));
+    esp_eap_client_set_username((uint8_t *)EAP_USERNAME, strlen(EAP_USERNAME));
+    esp_eap_client_set_password((uint8_t *)EAP_PASSWORD, strlen(EAP_PASSWORD));
+    esp_wifi_sta_enterprise_enable();
+    // WPA2 enterprise magic ends here
+
+    WiFi.begin(ssid);
+
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(1000);
+        Serial.print(&quot;.&quot;);
+    }
+
+    Serial.println(&quot;&quot;);
+    Serial.println(&quot;WiFi connected&quot;);
+    Serial.println(&quot;IP address: &quot;);
+    Serial.println(WiFi.localIP());
+}
+</code></pre>
+<h2 id="local-wifi">Local wifi</h2>
+<pre><code class="language-cpp">#include &lt;WiFi.h&gt;
+#include &lt;PubSubClient.h&gt;
+
+// Update these with values suitable for your network.
+const char* ssid = &quot;USERNAME&quot;;
+const char* password = &quot;PASSWORD&quot;;
+const char* mqtt_server = &quot;mqtt-dashboard.com&quot;; // Using HiveMQ broker
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+unsigned long lastMsg = 0;
+#define MSG_BUFFER_SIZE (75)
+char msg[MSG_BUFFER_SIZE];
+
+void setup_wifi() {
+  delay(10);
+  Serial.println();
+  Serial.print(&quot;Connecting to &quot;);
+  Serial.println(ssid);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(&quot;.&quot;);
+  }
+
+  Serial.println(&quot;&quot;);
+  Serial.println(&quot;WiFi connected&quot;);
+  Serial.println(&quot;IP address: &quot;);
+  Serial.println(WiFi.localIP());
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print(&quot;Message arrived [&quot;);
+  Serial.print(topic);
+  Serial.print(&quot;] &quot;);
+  for (int i = 0; i &lt; length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+}
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print(&quot;Attempting MQTT connection...&quot;);
+    String clientId = &quot;ESP32Client-&quot;;
+    clientId += String(random(0xffff), HEX);
+
+    if (client.connect(clientId.c_str())) {
+      Serial.println(&quot;connected&quot;);
+
+      // Generate a random number
+      int randomValue = random(0, 100);
+
+      // Convert the random number to a string and publish it
+      snprintf(msg, MSG_BUFFER_SIZE, &quot;Random number: %d&quot;, randomValue);
+      client.publish(&quot;testtopic/...&quot;, msg); //Ganti client publish nya
+
+      // Subscribe to a topic
+      client.subscribe(&quot;/topic/mqtt/...&quot;); //Ganti client subscribe nya
+    } else {
+      Serial.print(&quot;failed, rc=&quot;);
+      Serial.print(client.state());
+      Serial.println(&quot; try again in 5 seconds&quot;);
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  unsigned long now = millis();
+  if (now - lastMsg &gt; 2000) {
+    lastMsg = now;
+
+    // Generate a random number
+    int randomValue = random(0, 100); // Range can be adjusted
+
+    // Convert the random number to a string and publish it
+    snprintf(msg, MSG_BUFFER_SIZE, &quot;Random number: %d&quot;, randomValue);
+    Serial.print(&quot;Publish message: &quot;);
+    Serial.println(msg);
+    client.publish(&quot;testtopic/...&quot;, msg); //Ganti client publish nya
+  }
+}
+</code></pre>
+<h2 id="assignment">Assignment</h2>
+<p>Create a reusable function that can be used easily to connect to the campus internet. The prototype of the function should look like one of the followings:<br />
+- <code>void connect_to_campus_wifi_esp866(char* ssid, char* id, char* pwd)</code><br />
+- <code>void connect_to_campus_wifi_esp32(char* ssid, char* id, char* pwd)</code><br />
+- <code>void connect_to_campus_wifi_unor4(char* ssid, char* id, char* pwd)</code>  </p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="brokers/" class="btn btn-neutral float-right" title="Brokers">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+    
+      <span><a href="brokers/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="javascripts/mathjax.js"></script>
+      <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
+
+<!--
+MkDocs version : 1.5.3
+Build Date UTC : 2024-10-15 23:26:12.051533+00:00
+-->
