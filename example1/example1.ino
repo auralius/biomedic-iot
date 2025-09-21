@@ -42,19 +42,29 @@ void setup() {
   mqtt_publish(mqtt, "Device01/status", "Device 1 online", true);
 }
 
-static int k = 0;
 void loop() {
+  static unsigned long last_pub_ms = 0;     // 1 s ticker
+  static unsigned long last_reconn_ms = 0;  // throttle reconnect attempts
+  static int k = 0;
+  
+  // 1) Reconnect (and resubscribe) when needed, but don't spam the broker
   if (!mqtt.connected()) {
     // try reconnect (reusing cfg)
     mqtt_connect(mqtt, cfg);
     mqtt_subscribe(mqtt, "Device01/#");
   }
 
-  char message[20];
-  sprintf(message, "Pesan ke-%i.", k);
+  // 2) Always service MQTT as fast as possible
   mqtt_loop(mqtt);
-  mqtt_publish(mqtt, "Device01/topic1", message, true);
-  k++;
-  delay(1000);
+  
+  // 3) Publish exactly once per second
+  unsigned long now = millis();
+  if (now - last_pub_ms >= 1000UL) {
+    char message[32];
+    snprintf(message, sizeof(message), "Pesan ke-%d.", k);
+    mqtt_publish(mqtt, "Device01/topic1", message, true);
+    k++;
+    last_pub_ms = now;
+  }
 }
 
