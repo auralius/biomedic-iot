@@ -77,7 +77,7 @@ static BssidPick pick_best_bssid_for_ssid(const char* ssid) {
 // -------------------------------------------------------------------------------------------------
 // Personal Wi‑Fi (WPA/WPA2 PSK)
 // -------------------------------------------------------------------------------------------------
-bool connect_to_home_wifi(const char *ssid, const char *password) {
+bool connect_to_home_wifi(const char *ssid, const char *password, bool use_bssid) {
   if (!ssid || !*ssid) {
     LOGE("empty SSID");
     return false;
@@ -94,10 +94,14 @@ bool connect_to_home_wifi(const char *ssid, const char *password) {
   esp_wifi_set_country(&c);
 
   WiFi.disconnect(true, true);
-  delay(200);
+  delay(1000);
 
-  BssidPick pick = pick_best_bssid_for_ssid(ssid);
-  if (pick.found) {
+  BssidPick pick;
+  if (use_bssid) {
+    pick = pick_best_bssid_for_ssid(ssid);
+  }
+
+  if (use_bssid && pick.found) {
     LOGI("Connecting to \"%s\" via best BSSID %02X:%02X:%02X:%02X:%02X:%02X ch=%ld",
          ssid,
          pick.bssid[0], pick.bssid[1], pick.bssid[2],
@@ -111,21 +115,21 @@ bool connect_to_home_wifi(const char *ssid, const char *password) {
 
   wl_status_t st = WL_IDLE_STATUS;
   while ((st = WiFi.status()) != WL_CONNECTED) {
-    delay(250);
+    delay(2000);
     yield();  // keep WDT calm
 
     if (st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) {
       LOGW("quick re-begin due to status=%d", (int)st);
       WiFi.disconnect(false, false);
-      delay(150);
+      delay(500);
       static uint32_t last_scan_ms = 0;
       uint32_t now = millis();
-      if (now - last_scan_ms > 10000) {
+      if (use_bssid && (now - last_scan_ms > 10000)) {
         pick = pick_best_bssid_for_ssid(ssid);
         last_scan_ms = now;
       }
-      if (pick.found) WiFi.begin(ssid, password, pick.channel, pick.bssid, true);
-      else            WiFi.begin(ssid, password);
+      if (use_bssid && pick.found) WiFi.begin(ssid, password, pick.channel, pick.bssid, true);
+      else                         WiFi.begin(ssid, password);
     }
   }
 
@@ -341,12 +345,24 @@ bool mqtt_connect(PubSubClient& client, const MqttConfig& cfg,
 }
 
 bool mqtt_publish(PubSubClient& client, const char* topic,
-                  const String& payload, bool retained) {
+                  const char *payload, bool retained) {
   if (!topic) {
     LOGE("publish: null topic");
     return false;
   }
-  bool ok = client.publish(topic, payload.c_str(), retained);
+  bool ok = client.publish(topic, payload, retained);
+  if (!ok) LOGW("publish failed (state=%d)", client.state());
+  return ok;
+}
+
+bool mqtt_publish(PubSubClient& client, const char* topic,
+                  const byte *payload, unsigned int length,
+                  bool retained) {
+  if (!topic) {
+    LOGE("publish: null topic");
+    return false;
+  }
+  bool ok = client.publish(topic, payload, length, retained);
   if (!ok) LOGW("publish failed (state=%d)", client.state());
   return ok;
 }
@@ -365,6 +381,86 @@ bool mqtt_subscribe(PubSubClient& client, const char* topic) {
 void mqtt_loop(PubSubClient& client) {
   client.loop();
 }
+
+
+// -------------------------------------------------------------------------------------------------
+// RTP / UDP helpers
+// -------------------------------------------------------------------------------------------------
+void rtp_write_header_be(uint8_t* p,
+                         uint16_t seq,
+                         uint32_t ts,
+                         uint32_t ssrc,
+                         uint8_t  pt,
+                         bool     marker) {
+  // Byte 0: V=2, P=0, X=0, CC=0
+  p[0] = 0x80;
+  // Byte 1: M + PT
+  p[1] = (marker ? 0x80 : 0x00) | (pt & 0x7F);
+  // Sequence (BE)
+  p[2] = (uint8_t)(seq >> 8);
+  p[3] = (uint8_t)(seq & 0xFF);
+  // Timestamp (BE)
+  p[4] = (uint8_t)(ts >> 24);
+  p[5] = (uint8_t)(ts >> 16);
+  p[6] = (uint8_t)(ts >> 8);
+  p[7] = (uint8_t)(ts & 0xFF);
+  // SSRC (BE)
+  p[8]  = (uint8_t)(ssrc >> 24);
+  p[9]  = (uint8_t)(ssrc >> 16);
+  p[10] = (uint8_t)(ssrc >> 8);
+  p[11] = (uint8_t)(ssrc & 0xFF);
+}
+
+size_t rtp_build_packet_le(const void* samples,
+                               uint16_t n,
+                               size_t   elem_size,
+                               uint8_t* out,
+                               size_t   out_cap,
+                               uint16_t seq,
+                               uint32_t ts,
+                               uint32_t ssrc,
+                               uint8_t  pt,
+                               bool     marker) {
+  if (!samples || !out || elem_size == 0) return 0;
+  const size_t payload_bytes = (size_t)n * elem_size;
+  const size_t need = 12 + payload_bytes;
+  if (out_cap < need) return 0;
+
+  // RTP header (network order)
+  rtp_write_header_be(out, seq, ts, ssrc, pt, marker);
+
+  // Payload (ESP32 is little-endian → copy as-is)
+  memcpy(out + 12, samples, payload_bytes);
+  return need;
+}
+
+void rtp_advance(uint16_t* seq,
+                 uint32_t* ts,
+                 uint32_t  ts_inc,
+                 uint16_t  seq_inc) {
+  *seq = (uint16_t)(*seq + seq_inc);
+  *ts  = *ts + ts_inc;
+}
+
+bool udp_send(WiFiUDP& udp,
+              const char* ip,
+              uint16_t port,
+              const uint8_t* pkt,
+              size_t len) {
+  udp.beginPacket(ip, port);
+  const int w = udp.write(pkt, len);
+  udp.endPacket();
+  return w == (int)len;
+}
+
+void udp_warmup(WiFiUDP& udp,
+                const char* ip,
+                uint16_t port) {
+  udp.beginPacket(ip, port);
+  udp.write((const uint8_t*)"hi", 2);
+  udp.endPacket();
+}
+
 
 // -------------------------------------------------------------------------------------------------
 // Embedded Root CA (example for HiveMQ Cloud). Define here to live in flash.
