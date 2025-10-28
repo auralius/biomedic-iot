@@ -1,3 +1,9 @@
+## Hardware
+
+<img src="https://github.com/auralius/biomedic-iot/blob/esp32-hivemq/hardware/test-platform.png" width="550">
+
+## Software
+
 Copy the `iot-b` folder to `~/Arduino/libraries/`.
 Copy the `example1` folder to `~/Arduino/`.
 
