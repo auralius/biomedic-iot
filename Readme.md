@@ -19,12 +19,14 @@ __Example 2__
 - Simulate a 1-channel ECG.
 - Publish to HiveMQ (binary data frame; publish rate 2 Hz; 125 samples per frame).
 - Plot the ECG signal in Google Colab (Paho-MQTT subscriber).
+<img src="https://github.com/auralius/biomedic-iot/blob/esp32-hivemq/dashboards/dashboard_example2.gif" width="500">
 
 __Example 3 (RTP/RTCP over UDP)__
 - Connect to the server on the local network.
 - Simulate a 1-channel ECG.
 - Send the signal to the server (binary data frame; publish rate 2 Hz; 125 samples per frame).
 - Plot the ECG signal in Python (Matplotlib).
+<img src="https://github.com/auralius/biomedic-iot/blob/esp32-hivemq/dashboards/dashboard_example3.gif" width="500">
 
 __Example 4__
 - Connect to HiveMQ.
