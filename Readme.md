@@ -32,3 +32,10 @@ __Example 4__
 - Publish to HiveMQ (binary data frame; publish rate 2 Hz; mono 8 kHz audio).
 - Run a Python subscriber on a computer with speakers.
 - Play the audio through the speakers.
+
+__Example 5__
+- MPU6050 sensor.
+- Publish to HiveMQ (binary data frame; publish rate 2 Hz; 40 samples per frame).
+<img src="https://github.com/auralius/biomedic-iot/blob/esp32-hivemq/example5/example5.png" width="280">
+
+
