@@ -178,8 +178,8 @@ void mqtt_init(PubSubClient& client, WiFiClient& net,
  * @param backoff_ms   Base delay (ms) multiplied by attempt number between retries.
  * @return `true` on successful connection, `false` if max retries exceeded or invalid cfg.
  */
-bool mqtt_connect(PubSubClient& client, const MqttConfig& cfg,
-                  uint8_t max_retries = 10, uint32_t backoff_ms = 500);
+bool mqtt_connect(PubSubClient& client, const MqttConfig& cfg, 
+                  uint8_t max_retries = 5, uint32_t backoff_ms = 200);
 
 /**
  * @brief Publish a UTF‑8 string message.
@@ -205,6 +205,19 @@ bool mqtt_publish(PubSubClient& client, const char* topic,
                   const byte *payload, unsigned int length,
                   bool retained);
 
+bool mqtt_publish_stream(PubSubClient& client,
+                         const char* topic,
+                         const uint8_t* payload,
+                         size_t length,
+                         bool retained,
+                         size_t chunk_bytes);
+
+ bool mqtt_publish_stream_2seg(PubSubClient& client,
+                              const char* topic,
+                              const uint8_t* seg1, size_t len1,
+                              const uint8_t* seg2, size_t len2,
+                              bool retained = false,
+                              size_t chunk_bytes = 1024);                        
 /**
  * @brief Subscribe to a topic.
  * @param client  PubSubClient.
@@ -217,6 +230,11 @@ bool mqtt_subscribe(PubSubClient& client, const char* topic);
  * @brief Pump PubSubClient I/O. Call frequently in the main loop.
  */
 void mqtt_loop(PubSubClient& client);
+
+/**
+ * @brief Hard reset the socket.
+ */
+void mqtt_hard_reset(PubSubClient& client, WiFiClientSecure& net); 
 
 // =================================================================================================
 // RTP / UDP helpers (no classes)

@@ -1,3 +1,4 @@
+#include "esp_system.h"
 /**
  * @file iot-b.cpp
  * @brief Implementation of Wi‑Fi & MQTT helpers for ESP32 (Arduino core).
@@ -10,6 +11,7 @@
 // Wi‑Fi event logging (attach once)
 // -------------------------------------------------------------------------------------------------
 static bool s_wifiEventsAttached = false;
+static constexpr uint8_t  MAX_WIFI_RETRIES  = 5;
 
 static void attach_wifi_events_once() {
   if (s_wifiEventsAttached) return;
@@ -114,11 +116,15 @@ bool connect_to_home_wifi(const char *ssid, const char *password, bool use_bssid
   }
 
   wl_status_t st = WL_IDLE_STATUS;
+  uint32_t wifi_connect_retries = 0;
+
   while ((st = WiFi.status()) != WL_CONNECTED) {
     delay(2000);
-    yield();  // keep WDT calm
 
     if (st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) {
+      wifi_connect_retries = wifi_connect_retries + 1;
+      if (wifi_connect_retries >= MAX_WIFI_RETRIES) esp_restart();
+
       LOGW("quick re-begin due to status=%d", (int)st);
       WiFi.disconnect(false, false);
       delay(500);
@@ -193,14 +199,18 @@ bool connect_to_campus_wifi(const char *ssid,
 
   wl_status_t st;
   uint32_t last_scan_ms = 0;
+  uint32_t wifi_connect_retries = 0;
+
   while ((st = WiFi.status()) != WL_CONNECTED) {
     delay(1000);
-    yield();
 
     if (st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) {
+      wifi_connect_retries = wifi_connect_retries + 1;
+      if (wifi_connect_retries >= MAX_WIFI_RETRIES) esp_restart();
+
       LOGW("quick re-begin due to status=%d", (int)st);
       WiFi.disconnect(false, false);
-      delay(150);
+      delay(200);
 
       if (lock_to_best_bssid) {
         uint32_t now = millis();
@@ -299,7 +309,7 @@ void mqtt_init(PubSubClient& client, WiFiClient& net,
 // -------------------------------------------------------------------------------------------------
 // MQTT connect/publish/subscribe/loop
 // -------------------------------------------------------------------------------------------------
-bool mqtt_connect(PubSubClient& client, const MqttConfig& cfg,
+bool mqtt_connect(PubSubClient& client, const MqttConfig& cfg, 
                   uint8_t max_retries, uint32_t backoff_ms) {
   if (!cfg.server || !cfg.client_id) {
     LOGE("mqtt_connect: missing server/client_id");
@@ -334,11 +344,12 @@ bool mqtt_connect(PubSubClient& client, const MqttConfig& cfg,
     LOGW("MQTT connect failed (state=%d) attempt %lu", client.state(), (unsigned long)attempt);
 
     if (max_retries != 0 && attempt >= max_retries) {
-      LOGE("MQTT connect giving up after %lu attempts", (unsigned long)attempt);
+      LOGE("MQTT connect giving up after %lu attempts → reboot!", (unsigned long)attempt);
+      esp_restart();
       return false;
     }
 
-    delay(backoff_ms * attempt);
+    delay(backoff_ms);
     yield();
     attempt++;
   }
@@ -367,6 +378,75 @@ bool mqtt_publish(PubSubClient& client, const char* topic,
   return ok;
 }
 
+bool mqtt_publish_stream(PubSubClient& client,
+                         const char* topic,
+                         const uint8_t* payload,
+                         size_t length,
+                         bool retained,
+                         size_t chunk_bytes) {
+  if (!topic || !payload) {
+    LOGE("publish_stream: null topic/payload");
+    return false;
+  }
+  if (!client.beginPublish(topic, length, retained)) {
+    LOGW("beginPublish failed (state=%d)", client.state());
+    return false;
+  }
+  size_t written = 0;
+  while (written < length) {
+    size_t n = length - written;
+    if (n > chunk_bytes) n = chunk_bytes;
+    client.write(payload + written, n);
+    written += n;
+    yield();  // keep TCP/Wi-Fi healthy
+  }
+  if (!client.endPublish()) {
+    LOGW("endPublish failed (state=%d)", client.state());
+    return false;
+  }
+  return true;
+}
+
+bool mqtt_publish_stream_2seg(PubSubClient& client,
+                              const char* topic,
+                              const uint8_t* seg1, size_t len1,
+                              const uint8_t* seg2, size_t len2,
+                              bool retained,
+                              size_t chunk_bytes) {
+  if (!topic || (!seg1 && len1) || (!seg2 && len2)) {
+    LOGE("publish_stream_2seg: null segment");
+    return false;
+  }
+  const size_t total = len1 + len2;
+  if (!client.beginPublish(topic, total, retained)) {
+    LOGW("beginPublish failed (state=%d)", client.state());
+    return false;
+  }
+  // write seg1
+  size_t written = 0;
+  while (written < len1) {
+    size_t n = len1 - written;
+    if (n > chunk_bytes) n = chunk_bytes;
+    client.write(seg1 + written, n);
+    written += n;
+    yield();
+  }
+  // write seg2
+  written = 0;
+  while (written < len2) {
+    size_t n = len2 - written;
+    if (n > chunk_bytes) n = chunk_bytes;
+    client.write(seg2 + written, n);
+    written += n;
+    yield();
+  }
+  if (!client.endPublish()) {
+    LOGW("endPublish failed (state=%d)", client.state());
+    return false;
+  }
+  return true;
+}
+
 bool mqtt_subscribe(PubSubClient& client, const char* topic) {
   if (!topic) {
     LOGE("subscribe: null topic");
@@ -380,6 +460,13 @@ bool mqtt_subscribe(PubSubClient& client, const char* topic) {
 
 void mqtt_loop(PubSubClient& client) {
   client.loop();
+}
+
+void mqtt_hard_reset(PubSubClient& client, WiFiClientSecure& net) {
+  LOGE("HARD RESET!");
+  client.disconnect();   // PubSubClient
+  net.stop();            // WiFiClientSecure socket
+  delay(50);
 }
 
 
