@@ -40,9 +40,9 @@ __Example 5__
 - Publish to HiveMQ (binary data frame; publish rate 2 Hz; 40 samples per frame).
 <img src="https://github.com/auralius/biomedic-iot/blob/esp32-hivemq/example5/example5.png" width="280">
 
-__Example 6 (ESP32-S3 Camera → MQTT JPEG)__
+__Example 6 (ESP32-S3 RHYX Camera → MQTT JPEG)__
 - Capture VGA (640×480) frames from the ESP32-S3 camera.
-- Encode to **JPEG in software** (RGB565 → JPEG via `frame2jpg`) since this sensor doesn’t do HW-JPEG.
+- Encode to **JPEG in software** (RGB565 → JPEG via `frame2jpg`) since RHYX camera doesn’t do HW-JPEG.
 - Publish **one JPEG per MQTT message** over TLS (port 8883) to HiveMQ using `mqtt_publish_stream` (streamed in small chunks).
 - Python subscriber decodes and **displays grayscale** frames in real time (Paho-MQTT + Pillow + Matplotlib).
 - Typical rate: ~2 FPS by default (tuneable). JPEG **size varies** with scene/quality (e.g., 5–30 KB).
