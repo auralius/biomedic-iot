@@ -9,6 +9,21 @@
 Copy the `iot-b` folder to `~/Arduino/libraries/`.
 Copy the `example1` folder to `~/Arduino/`.
 
+`iot-b` is a tiny Wi-Fi + MQTT helpers for ESP32 (Arduino core). This layer wraps common tasks—bringing Wi-Fi online (including WPA2-Enterprise), setting up MQTT over TLS or plaintext, handling retries, and publishing efficiently (including chunked streams). Also, `iot-b` also contains some simple UDP / RTP utilities (header build, counters, warm-up). 
+
+__Features__
+
+- Wi-Fi helpers
+- Event logging for connect/disconnect/IP acquisition. 
+- Scan and lock to the best BSSID for a given SSID (optional). 
+- WPA/WPA2-PSK convenience connect (connect_to_home_wifi). 
+- WPA2-Enterprise (TTLS/PAP) helper (connect_to_campus_wifi).
+- TLS-ready MQTT, ensuring SNTP time before TLS for certificate validations.
+- HiveMQ and EMQX cerificates. 
+- Connect with retries/backoff.
+- Publish small payloads or stream large payloads. 
+- Also, simple UDP / RTP utilities (header build, counters, warm-up). 
+
 ## Demonstrations
 __Example 1__
 - Connect to HiveMQ.
