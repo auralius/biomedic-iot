@@ -1,210 +1,193 @@
 #pragma once
 /**
  * @file iot-b.h
- * @brief Wi‑Fi, MQTT, and RTP/UDP helper utilities for ESP32 (Arduino core).
+ * @brief Tiny Wi‑Fi + MQTT helper layer for ESP32/Arduino sketches (TLS and plaintext).
  *
- * This header centralizes helpers to:
- *  - Connect to personal (WPA/WPA2 PSK) or campus‑style WPA2‑Enterprise networks.
- *  - Initialize and use MQTT (TLS or plaintext) via PubSubClient with sane defaults.
- *  - Build and send minimal **RTP over UDP** packets for real‑time streams.
+ * This header exposes a small set of utilities to bring Wi‑Fi online, set up
+ * MQTT (either over TLS with @c WiFiClientSecure or plaintext with @c WiFiClient),
+ * and publish data efficiently (including chunked/streamed payloads).
  *
- * The companion implementation lives in **iot-b.cpp**.
+ * It also includes a couple of RTP/UDP helpers used in some examples.
  *
- * @author  Auralius Manurung and ChatGPT
- * @version 1.1
+ * The functions are documented with Doxygen tags so your IDE and generated docs
+ * will show concise parameter and return info.
  */
 
+#include <Arduino.h>
 #include <WiFi.h>
-#include <WiFiClientSecure.h>
 #include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include <WiFiUdp.h>
 #include <PubSubClient.h>
-
-#include <esp_wifi.h>
-#include <esp_log.h>
-#include <esp_eap_client.h>
 #include <time.h>
 
+// ===== Logging shorthands ======================================================
 // =================================================================================================
 // \defgroup logging Logging macros
 // Lightweight wrappers over ESP‑IDF logging, auto‑tagged with the current function name.
 // -------------------------------------------------------------------------------------------------
-/** @addtogroup logging
- *  @{ */
-/** @brief Error log (tag = current function). */
+// \addtogroup logging
+// @{ 
+// @brief Error log (tag = current function).
 #define LOGE(...) ESP_LOGE(__func__, __VA_ARGS__)
-/** @brief Warning log (tag = current function). */
+// @brief Warning log (tag = current function).
 #define LOGW(...) ESP_LOGW(__func__, __VA_ARGS__)
-/** @brief Info log (tag = current function). */
+// @brief Info log (tag = current function).
 #define LOGI(...) ESP_LOGI(__func__, __VA_ARGS__)
-/** @brief Debug log (tag = current function). */
+// @brief Debug log (tag = current function).
 #define LOGD(...) ESP_LOGD(__func__, __VA_ARGS__)
-/** @brief Verbose log (tag = current function). */
+// @brief Verbose log (tag = current function).
 #define LOGV(...) ESP_LOGV(__func__, __VA_ARGS__)
-/** @} */
+// @} // end of logging group
 
+// ===== MQTT buffer size used by mqtt_init =====================================
 #ifndef MQTT_BUFFER_SIZE
-  /** @brief Default PubSubClient buffer size (bytes). */
-  #define MQTT_BUFFER_SIZE 1024
+#define MQTT_BUFFER_SIZE 1024
 #endif
 
-// =================================================================================================
-// Time & Certificates
-// -------------------------------------------------------------------------------------------------
+// ===== Minimal connection config ==============================================
 /**
- * @brief Minimum acceptable UNIX epoch (2023‑01‑01). If the system time is below this value,
- *        the code will block to sync time via SNTP before attempting TLS.
+ * @brief Minimal connection/session configuration for @ref mqtt_connect.
+ *
+ * These fields are passed directly to PubSubClient during connect, including an
+ * optional Last Will and Testament (LWT).
  */
-static const time_t kMinGoodEpoch = 1672531200;
+struct MqttConfig {
+  const char* server    = nullptr;  ///< MQTT broker hostname or IP.
+  uint16_t    port      = 0;        ///< Broker port (e.g., 1883 or 8883).
+  const char* client_id = nullptr;  ///< Client ID string (must be unique per broker).
+  const char* username  = nullptr;  ///< Optional username for authentication.
+  const char* password  = nullptr;  ///< Optional password for authentication.
+  const char* topic     = nullptr;  ///< Optional LWT topic.
+  const char* payload   = nullptr;  ///< Optional LWT payload.
+  bool        retain    = false;    ///< LWT retain flag.
+};
 
+// ===== Wi‑Fi helpers ===========================================================
 /**
- * @brief Root CA (PEM) for secure MQTT examples (e.g., HiveMQ or EMQX Cloud).
- * @note  Provided as `extern` and defined in @ref iot-b.cpp so it resides in flash.
+ * @brief Connect to a standard WPA/WPA2 home Wi‑Fi network.
+ *
+ * @param ssid  Access point SSID.
+ * @param pswd  Access point password.
+ * @param lock_to_best_bssid Reserved/unused (kept for API compatibility).
+ * @return true on successful association and DHCP; false on timeout/failure.
+ *
+ * @note This is a convenience wrapper; you may still call @c WiFi.begin directly.
+ */
+bool connect_to_home_wifi(const char* ssid, const char* pswd,
+                          bool lock_to_best_bssid = false);
+
+// ===== Time sync for TLS =======================================================
+/**
+ * @brief Ensure SNTP time is sane before using TLS (avoids “cert not yet valid”).
+ *
+ * If the current epoch is older than a threshold (e.g., 2023‑01‑01), this function
+ * triggers SNTP and waits until time is synced.
+ *
+ * @return true if time is already valid or becomes valid; false otherwise.
+ */
+bool mqtt_sync_time_if_needed();
+
+// ===== TLS config (CA or insecure) ============================================
+/**
+ * @brief PEM‑encoded CA certificates for common demo brokers (if you need them).
+ *
+ * Include your own CA bundle in production. These are declared here; define them in
+ * your @c iot-b.cpp or another TU.
  */
 extern const char hivemq_ca_cert[];
 extern const char emqx_ca_cert[];
 
-// =================================================================================================
-// Wi‑Fi helpers
-// -------------------------------------------------------------------------------------------------
 /**
- * @brief Connect to a personal/home Wi‑Fi network (WPA/WPA2 PSK).
+ * @brief Configure a @c WiFiClientSecure for verified or insecure TLS.
  *
- * Strategy:
- *  1. Optionally scan for all BSSIDs under the target SSID and pick the strongest AP/channel.
- *  2. Attempt association locked to that BSSID+channel (with fallback to generic connect).
- *  3. Retry on transient failures until connected (blocking), with basic logging of Wi‑Fi events.
+ * @param net         The secure client to configure.
+ * @param verify_cert When true, set the provided @p cert as CA root. When false, use @c setInsecure().
+ * @param cert        PEM‑encoded CA certificate (null‑terminated). Ignored if @p verify_cert is false.
  *
- * @param ssid       Target SSID (non‑null, non‑empty).
- * @param password   Passphrase for the SSID.
- * @param use_bssid  If true, actively scan and lock to the best BSSID.
- * @return `true` on successful association (function blocks until connected), `false` on invalid args.
- * @see connect_to_campus_wifi
- */
-bool connect_to_home_wifi(const char *ssid, const char *password, bool use_bssid = false);
-
-/**
- * @brief Connect to a campus/enterprise WPA2 network using EAP (TTLS/PEAP‑style) via esp_eap_client.
- *
- * The function sets up EAP identity/username/password, enables WPA2‑Enterprise, optionally scans and
- * locks to the best BSSID for stability, and blocks until the station is connected.
- *
- * @param ssid               Enterprise SSID.
- * @param username           EAP inner identity / username.
- * @param password           EAP password.
- * @param outer_identity     Optional anonymous (outer) identity; if nullptr/empty, @p username is used.
- * @param lock_to_best_bssid If true, scan and lock to the strongest BSSID for @p ssid.
- * @return `true` on successful association (blocking), `false` on invalid args.
- * @note   Requires the Arduino‑ESP32 core to include `esp_eap_client`.
- */
-bool connect_to_campus_wifi(const char *ssid,
-                            const char *username,
-                            const char *password,
-                            const char *outer_identity = nullptr,
-                            bool lock_to_best_bssid = true);
-
-// =================================================================================================
-// MQTT helpers (PubSubClient)
-// -------------------------------------------------------------------------------------------------
-/**
- * @brief Configuration for MQTT connection.
- */
-struct MqttConfig {
-  const char* server    = nullptr;   //!< MQTT broker hostname.
-  uint16_t    port      = 8883;      //!< Port: 8883 (TLS) or 1883 (plaintext).
-  const char* client_id = nullptr;   //!< Client ID (required).
-  const char* username  = nullptr;   //!< Username (optional).
-  const char* password  = nullptr;   //!< Password (optional).
-
-  // Optional Last Will
-  const char* topic     = nullptr;   //!< Last Will topic (optional).
-  const char* payload   = nullptr;   //!< Last Will payload (optional).
-  bool        retain    = true;      //!< Last Will retain flag.
-};
-
-/**
- * @brief Ensure system time is sane via SNTP, useful before TLS handshakes.
- *
- * Safe to call multiple times; if time is already sane (>= @ref kMinGoodEpoch) it returns immediately.
- * Otherwise it blocks until time is synced.
- *
- * @return `true` if time is already sane or becomes synced.
- */
-bool mqtt_sync_time_if_needed();
-
-/**
- * @brief Configure @ref WiFiClientSecure with a CA certificate or set it insecure.
- *
- * Call after Wi‑Fi has connected. If @p verify_cert is true, @p cert (or a default CA) will be installed;
- * otherwise `setInsecure()` is used (not recommended in production).
- *
- * @param net          Secure client reference.
- * @param verify_cert  Whether to enable CA verification (default: true).
- * @param cert         PEM Root CA to trust (defaults to @ref hivemq_ca_cert).
+ * @note This function also ensures time is synced so certificate validation won’t fail due to bad RTC.
  */
 void mqtt_configure_secure_client(WiFiClientSecure& net,
-                                  bool verify_cert = true,
-                                  const char* cert = hivemq_ca_cert);
+                                  bool verify_cert,
+                                  const char* cert);
 
+// ===== MQTT init (TLS & plaintext) ============================================
 /**
- * @brief Initialize a **secure** MQTT client.
+ * @brief Bind a @c PubSubClient to a @c WiFiClientSecure and set broker/handlers.
  *
- * Sets the network client, server host/port, MQTT callback, and buffer size.
- *
- * @param client   PubSubClient instance.
- * @param net      Connected @ref WiFiClientSecure.
- * @param host     MQTT host.
- * @param port     MQTT port (usually 8883 for TLS).
- * @param callback PubSubClient callback (message handler).
+ * @param client   PubSubClient instance to configure.
+ * @param net      The underlying secure transport.
+ * @param host     Broker hostname or IP.
+ * @param port     Broker port (typically 8883 for TLS).
+ * @param callback Optional message callback (use nullptr if unused).
  */
 void mqtt_init(PubSubClient& client, WiFiClientSecure& net,
                const char* host, uint16_t port, MQTT_CALLBACK_SIGNATURE);
 
 /**
- * @brief Initialize a **plaintext** MQTT client.
- * @copydetails mqtt_init(PubSubClient&, WiFiClientSecure&, const char*, uint16_t, MQTT_CALLBACK_SIGNATURE)
+ * @brief Bind a @c PubSubClient to a plaintext @c WiFiClient and set broker/handlers.
+ *
+ * @param client   PubSubClient instance to configure.
+ * @param net      The underlying plaintext transport.
+ * @param host     Broker hostname or IP.
+ * @param port     Broker port (typically 1883 for plaintext).
+ * @param callback Optional message callback (use nullptr if unused).
  */
 void mqtt_init(PubSubClient& client, WiFiClient& net,
                const char* host, uint16_t port, MQTT_CALLBACK_SIGNATURE);
 
+// ===== MQTT connect/publish/loop ==============================================
 /**
- * @brief Connect to an MQTT broker with linear backoff.
+ * @brief Connect to the broker using the provided configuration, with simple retry/backoff.
  *
- * If @p max_retries is 0, retries indefinitely; otherwise attempts up to @p max_retries times.
- *
- * @param client       PubSubClient instance.
- * @param cfg          Connection configuration.
- * @param max_retries  Maximum attempts (0 = infinite).
- * @param backoff_ms   Base delay (ms) multiplied by attempt number between retries.
- * @return `true` on successful connection, `false` if max retries exceeded or invalid cfg.
+ * @param client       The PubSubClient to connect.
+ * @param cfg          Connection/session parameters (host is already set by @ref mqtt_init).
+ * @param max_retries  Maximum attempts before giving up. Use 0 for infinite retries.
+ * @param backoff_ms   Linear backoff in milliseconds between retries (multiplied by attempt count).
+ * @return true if connected; false if it ultimately failed.
  */
-bool mqtt_connect(PubSubClient& client, const MqttConfig& cfg, 
-                  uint8_t max_retries = 5, uint32_t backoff_ms = 200);
+bool mqtt_connect(PubSubClient& client, const MqttConfig& cfg,
+                  uint8_t max_retries = 10, uint32_t backoff_ms = 500);
 
 /**
- * @brief Publish a UTF‑8 string message.
- * @param client    PubSubClient.
- * @param topic     Topic string (non‑null).
- * @param payload   Null‑terminated payload.
- * @param retained  Retain flag.
- * @return `true` on success.
+ * @brief Publish a small text payload (convenience overload).
+ *
+ * @param client   PubSubClient instance.
+ * @param topic    Destination topic.
+ * @param payload  Null‑terminated UTF‑8 string.
+ * @param retained MQTT retained flag.
+ * @return true on success; false on error.
  */
 bool mqtt_publish(PubSubClient& client, const char* topic,
                   const char* payload, bool retained = true);
 
 /**
- * @brief Publish a binary payload.
- * @param client    PubSubClient.
- * @param topic     Topic string (non‑null).
- * @param payload   Pointer to bytes.
- * @param length    Payload length in bytes.
- * @param retained  Retain flag.
- * @return `true` on success.
+ * @brief Publish a small binary payload (convenience overload).
+ *
+ * @param client   PubSubClient instance.
+ * @param topic    Destination topic.
+ * @param payload  Pointer to bytes.
+ * @param length   Number of bytes to send.
+ * @param retained MQTT retained flag.
+ * @return true on success; false on error.
  */
 bool mqtt_publish(PubSubClient& client, const char* topic,
-                  const byte *payload, unsigned int length,
+                  const byte* payload, unsigned int length,
                   bool retained);
 
+/**
+ * @brief Stream a large payload in fixed‑size chunks to avoid big TLS writes.
+ *
+ * @param client      PubSubClient instance.
+ * @param topic       Destination topic.
+ * @param payload     Pointer to the full payload buffer.
+ * @param length      Total bytes to publish.
+ * @param retained    MQTT retained flag.
+ * @param chunk_bytes Max bytes per @c write() call (e.g., 256–1024 for Wi‑Fi stability).
+ * @return true if all bytes were published; false otherwise.
+ *
+ * @note Internally uses @c beginPublish / @c write / @c endPublish. Ideal for images/frames.
+ */
 bool mqtt_publish_stream(PubSubClient& client,
                          const char* topic,
                          const uint8_t* payload,
@@ -212,83 +195,93 @@ bool mqtt_publish_stream(PubSubClient& client,
                          bool retained,
                          size_t chunk_bytes);
 
- bool mqtt_publish_stream_2seg(PubSubClient& client,
+/**
+ * @brief Stream a payload composed of two segments (header + body) without copying.
+ *
+ * @param client      PubSubClient instance.
+ * @param topic       Destination topic.
+ * @param seg1        Pointer to segment 1 (e.g., header). Pass nullptr if @p len1 is 0.
+ * @param len1        Size of segment 1 in bytes.
+ * @param seg2        Pointer to segment 2 (e.g., body). Pass nullptr if @p len2 is 0.
+ * @param len2        Size of segment 2 in bytes.
+ * @param retained    MQTT retained flag.
+ * @param chunk_bytes Max bytes per @c write() call.
+ * @return true on success; false on failure.
+ *
+ * @note Useful when you want to prepend a tiny header without building a new buffer.
+ */
+bool mqtt_publish_stream_2seg(PubSubClient& client,
                               const char* topic,
                               const uint8_t* seg1, size_t len1,
                               const uint8_t* seg2, size_t len2,
                               bool retained = false,
-                              size_t chunk_bytes = 1024);                        
+                              size_t chunk_bytes = 1024);
+
 /**
  * @brief Subscribe to a topic.
- * @param client  PubSubClient.
- * @param topic   Topic string (non‑null).
- * @return `true` on success.
+ * @param client PubSubClient instance.
+ * @param topic  Topic filter to subscribe to.
+ * @return true on success; false on failure.
  */
 bool mqtt_subscribe(PubSubClient& client, const char* topic);
 
 /**
- * @brief Pump PubSubClient I/O. Call frequently in the main loop.
+ * @brief Drive the PubSubClient state machine (keeps the connection alive, dispatches callbacks).
+ *
+ * Call this regularly from your @c loop().
+ *
+ * @param client PubSubClient instance.
  */
 void mqtt_loop(PubSubClient& client);
 
+// ===== Hard reset overloads (TLS & plaintext) =================================
 /**
- * @brief Hard reset the socket.
+ * @brief Force‑close MQTT and the underlying TLS socket.
+ *
+ * @param client PubSubClient instance.
+ * @param net    WiFiClientSecure transport to reset.
+ * @note Useful after failed writes or broker timeouts to avoid half‑open sockets.
  */
-void mqtt_hard_reset(PubSubClient& client, WiFiClientSecure& net); 
-
-// =================================================================================================
-// RTP / UDP helpers (no classes)
-// -------------------------------------------------------------------------------------------------
-/**
- * @defgroup rtp RTP/UDP helpers
- * @brief Minimal helpers to pack and send RTP frames over UDP.
- *
- * Header fields are always **big‑endian** (network order) per RTP spec. For convenience, the payload
- * helpers here write **little‑endian int16** samples (to match the project’s prior MQTT framing).
- * Keep `seq` and `ts` counters in your sketch and pass them to the helpers.
- *  @{ */
+void mqtt_hard_reset(PubSubClient& client, WiFiClientSecure& net);
 
 /**
- * @brief Write a 12‑byte RTP header into @p p (BIG‑ENDIAN fields).
+ * @brief Force‑close MQTT and the underlying plaintext socket.
  *
- * Layout: V=2,P=0,X=0,CC=0 | M/PT | sequence | timestamp | SSRC.
+ * @param client PubSubClient instance.
+ * @param net    WiFiClient transport to reset.
+ */
+void mqtt_hard_reset(PubSubClient& client, WiFiClient& net);
+
+// ==============================================================================
+// RTP / UDP helpers                                                             
+// ==============================================================================
+/**
+ * @brief Write a 12‑byte RTP header (big‑endian fields) into @p p.
  *
- * @param p       Destination buffer (>= 12 bytes).
- * @param seq     RTP sequence number.
- * @param ts      RTP timestamp in the media clock domain.
- * @param ssrc    Synchronization source identifier.
- * @param pt      Payload type (7‑bit dynamic/static).
- * @param marker  Set the M bit (frame boundary/keyframe). Optional, default false.
+ * @param p      Destination buffer (must be at least 12 bytes).
+ * @param seq    RTP sequence number.
+ * @param ts     RTP timestamp.
+ * @param ssrc   SSRC identifier.
+ * @param pt     Payload type (7‑bit).
+ * @param marker Set true to mark a significant event (M‑bit).
  */
 void rtp_write_header_be(uint8_t* p,
-                         uint16_t seq,
-                         uint32_t ts,
-                         uint32_t ssrc,
-                         uint8_t  pt,
-                         bool     marker = false);
+                         uint16_t seq, uint32_t ts, uint32_t ssrc,
+                         uint8_t pt, bool marker = false);
 
 /**
- * @brief Build a complete RTP packet with **little‑endian void** payload into @p out.
+ * @brief Build an RTP packet with a little‑endian PCM payload into @p out.
  *
- * The function writes the 12‑byte RTP header (BE) followed by @p n samples in LE order.
- * On success it returns the total packet size (12 + 2*n). If @p out_cap is too small, returns 0.
- *
- * @param samples  Pointer to @p n int16 samples (µV) to serialize (little‑endian in payload).
+ * @param samples  Pointer to PCM samples (int16, little‑endian).
  * @param n        Number of samples.
  * @param out      Destination buffer.
  * @param out_cap  Capacity of @p out in bytes.
  * @param seq      RTP sequence number.
- * @param ts       RTP timestamp (media clock).
- * @param ssrc     SSRC.
+ * @param ts       RTP timestamp.
+ * @param ssrc     SSRC identifier.
  * @param pt       Payload type.
- * @param marker   Marker bit (optional).
- * @return Packet length in bytes, or 0 if @p out_cap is insufficient.
- *
- * @code
- *   uint8_t pkt[12 + N*2];
- *   size_t len = rtp_build_packet_le(samples, N, pkt, sizeof(pkt), seq, ts, SSRC, 97, false);
- *   if (len) { udp_send(udp, ip, port, pkt, len); rtp_advance(&seq, &ts, N); }
- * @endcode
+ * @param marker   Marker bit.
+ * @return Number of bytes written (0 on error).
  */
 size_t rtp_build_packet_le(const int16_t* samples,
                            uint16_t n,
@@ -301,11 +294,12 @@ size_t rtp_build_packet_le(const int16_t* samples,
                            bool     marker = false);
 
 /**
- * @brief Advance RTP sequence/timestamp counters in‑place.
- * @param seq     Pointer to sequence number (incremented by @p seq_inc, default 1).
- * @param ts      Pointer to timestamp (incremented by @p ts_inc).
- * @param ts_inc  Timestamp increment (e.g., samples per packet).
- * @param seq_inc Sequence increment (default 1).
+ * @brief Advance RTP sequence and timestamp counters.
+ *
+ * @param seq     In/out sequence number (increments by @p seq_inc).
+ * @param ts      In/out timestamp (increments by @p ts_inc).
+ * @param ts_inc  Timestamp increment.
+ * @param seq_inc Sequence increment (defaults to 1).
  */
 void rtp_advance(uint16_t* seq,
                  uint32_t* ts,
@@ -313,28 +307,23 @@ void rtp_advance(uint16_t* seq,
                  uint16_t  seq_inc = 1);
 
 /**
- * @brief Send a datagram via @ref WiFiUDP.
- * @param udp  UDP handle.
- * @param ip   Destination IPv4 string (e.g., "192.168.1.50").
+ * @brief Send a UDP datagram.
+ *
+ * @param udp  WiFiUDP socket.
+ * @param ip   Destination IPv4 string (e.g., "192.168.1.10").
  * @param port Destination port.
- * @param pkt  Pointer to packet bytes.
- * @param len  Packet length in bytes.
- * @return `true` if all bytes were queued for send.
+ * @param pkt  Pointer to bytes to send.
+ * @param len  Number of bytes to send.
+ * @return true if all bytes were written; false otherwise.
  */
-bool udp_send(WiFiUDP& udp,
-              const char* ip,
-              uint16_t port,
-              const uint8_t* pkt,
-              size_t len);
+bool udp_send(WiFiUDP& udp, const char* ip, uint16_t port,
+              const uint8_t* pkt, size_t len);
 
 /**
- * @brief Send a tiny datagram to prime ARP/NDP/route caches before streaming.
- * @param udp  UDP handle.
+ * @brief Send a tiny UDP packet to warm up ARP/NDP tables before real traffic.
+ *
+ * @param udp  WiFiUDP socket.
  * @param ip   Destination IPv4 string.
  * @param port Destination port.
  */
-void udp_warmup(WiFiUDP& udp,
-                const char* ip,
-                uint16_t port);
-
-/** @} */ // end of group rtp
+void udp_warmup(WiFiUDP& udp, const char* ip, uint16_t port);
