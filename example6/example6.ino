@@ -22,7 +22,7 @@ static const uint16_t MQTT_PORT_TLS = 8883;
 static const char* TOPIC_JPEG   = "Device01/cam-jpeg";
 static const char* STATUS_TOPIC = "Device01/status";
 
-// Gentle pacing (aim ~5 FPS)
+// Gentle pacing (aim ~2 FPS)
 static constexpr uint32_t FRAME_MIN_PERIOD_MS = 500;
 
 // MQTT knobs
