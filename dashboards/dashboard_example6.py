@@ -33,20 +33,38 @@ def on_message(client, userdata, msg):
     if not payload:
         return
 
-    # measure size on the Python side
     sizes.append(len(payload))
     frame_count += 1
 
-    # decode → grayscale
+    # --- decode WITHOUT forcing grayscale ---
     try:
-        img = Image.open(BytesIO(payload)).convert("L")
+        img = Image.open(BytesIO(payload))
+        # Normalize modes:
+        # - L      -> grayscale (2D)
+        # - RGB    -> color (HxWx3)
+        # - RGBA   -> drop alpha to avoid compositing surprises
+        # - P/YCbCr/etc. -> convert to RGB
+        if img.mode == "L":
+            is_gray = True
+        elif img.mode == "RGBA":
+            img = img.convert("RGB"); is_gray = False
+        elif img.mode != "RGB":
+            img = img.convert("RGB"); is_gray = False
+        else:
+            is_gray = False
     except Exception as e:
         print(f"[WARN] JPEG decode failed: {e}")
         return
 
-    # redraw (simple: recreate each time)
+    # --- draw ---
     ax.clear()
-    ax.imshow(img, cmap="gray", vmin=0, vmax=255, interpolation="nearest")
+    if is_gray:
+        # 2D grayscale: show with gray colormap (avoid viridis)
+        ax.imshow(img, cmap="gray", vmin=0, vmax=255, interpolation="nearest")
+    else:
+        # True color: no colormap
+        ax.imshow(img, interpolation="nearest")
+
     avg_kb = kb(sum(sizes) / len(sizes)) if sizes else 0.0
     cur_kb = kb(len(payload))
     ax.set_title(f"{img.width}x{img.height}  |  size {cur_kb:.1f} KB  (avg {avg_kb:.1f} KB / {len(sizes)} frames)")
@@ -54,7 +72,6 @@ def on_message(client, userdata, msg):
     fig.canvas.draw_idle()
     plt.pause(0.001)
 
-    # light console logging every 10 frames
     if frame_count % 10 == 0:
         print(f"[FRAME {frame_count}] {img.width}x{img.height}  size={cur_kb:.1f} KB  avg100={avg_kb:.1f} KB")
 
@@ -67,7 +84,6 @@ def build_client() -> mqtt.Client:
     c.tls_set_context(ctx)
     c.on_connect = on_connect
     c.on_message = on_message
-    # c.enable_logger()  # uncomment for verbose MQTT logs
     return c
 
 def main():
@@ -76,11 +92,10 @@ def main():
     client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
 
     plt.ion()
-    fig, ax = plt.subplots(num="ESP32-S3 JPEG stream — grayscale + size")
+    fig, ax = plt.subplots(num="ESP32-S3 JPEG stream")
     ax.axis("off")
     ax.set_title("Waiting for frames…")
 
-    # single-threaded loop: drive MQTT + UI
     while True:
         client.loop(timeout=0.05)
         plt.pause(0.01)
