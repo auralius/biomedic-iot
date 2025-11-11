@@ -63,4 +63,6 @@ __Example 6 (ESP32-S3 RHYX Camera → MQTT JPEG)__
 - Typical rate: ~2 FPS by default (tuneable). JPEG **size varies** with scene/quality (e.g., 5–30 KB).
 <img src="https://github.com/auralius/biomedic-iot/blob/esp32-hivemq/dashboards/dashboard_example6.gif" width="320">
 
+Note: for ESP32-S3 with R8/R16 octal combos (often 8MB PSRAM + 16MB flash): makse sure PSRAM is set to OPI PSRAM.  
+
 
