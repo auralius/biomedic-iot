@@ -1,3 +1,9 @@
+## General Topics
+
+Biomedical instrumentation lives in the land of signals, not snapshots. Physiological measurements such as ECG, PPG, EMG, respiration, and blood-pressure waveforms are inherently time-continuous and are typically acquired through continuous sampling. As a result, streaming systems provide a natural and appropriate architectural model for biomedical instrumentation devices.
+
+In this class, we focus on biomedical instrumentation systems operating at sub-second sampling rates, where data are generated continuously and must be processed, transmitted, or acted upon with low latency.
+
 ## Hardware
 
 <img src="https://github.com/auralius/biomedic-iot/blob/esp32-hivemq/hardware/test-platform.png" width="550">
